@@ -1,6 +1,6 @@
 workflows:
   android-release:
-    name: Synex Android Build
+    name: Synex Live Build
     max_build_duration: 60
     environment:
       flutter: stable
@@ -8,35 +8,20 @@ workflows:
     scripts:
       - name: Build Flutter App
         script: |
-          # Debug: dekho kya fetch hua
-          echo "=== ROOT FILES ==="
+          echo "=== STRUCTURE ==="
           ls -la
-          echo "=== CHECKING SUBFOLDERS ==="
-          find . -name "pubspec.yaml" 2>/dev/null
-          find . -name "main.dart" 2>/dev/null
+          ls -la synex_merged/ || echo "synex_merged not found"
           
-          # Auto-detect source folder
-          SRC=$(find . -name "pubspec.yaml" | head -1 | xargs dirname)
-          echo "Source folder found: $SRC"
-          
-          # Create fresh Flutter project
           flutter create --org com.synex --project-name synex_live /tmp/synex_build
           
-          # Copy lib and pubspec from detected source
           rm -rf /tmp/synex_build/lib
-          cp -r $SRC/lib /tmp/synex_build/lib
-          cp $SRC/pubspec.yaml /tmp/synex_build/pubspec.yaml
+          cp -r synex_merged/lib /tmp/synex_build/lib
+          cp synex_merged/pubspec.yaml /tmp/synex_build/pubspec.yaml
           
-          # Copy assets if exist
-          if [ -d "$SRC/assets" ]; then
-            cp -r $SRC/assets /tmp/synex_build/assets
+          if [ -d "synex_merged/assets" ]; then
+            cp -r synex_merged/assets /tmp/synex_build/assets
           fi
           
-          # Fix package name
-          sed -i 's/applicationId "com.example.synex_live"/applicationId "com.synex.synex_live"/' \
-            /tmp/synex_build/android/app/build.gradle
-          
-          # Write AndroidManifest
           cat > /tmp/synex_build/android/app/src/main/AndroidManifest.xml << 'MANIFEST'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET"/>
@@ -74,12 +59,11 @@ workflows:
           </manifest>
           MANIFEST
           
-          # Replace working dir
+          sed -i 's/applicationId "com.example.synex_live"/applicationId "com.synex.synex_live"/' \
+            /tmp/synex_build/android/app/build.gradle
+          
           rm -rf synex_live
           mv /tmp/synex_build synex_live
-          
-          echo "=== FINAL STRUCTURE ==="
-          ls synex_live/lib/
 
       - name: Get packages
         script: |

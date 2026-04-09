@@ -6,24 +6,69 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Create Flutter project
+      - name: Build Flutter App
         script: |
-          flutter create --org com.synex --project-name synex_live temp_app
-          cp -r synex_live/lib temp_app/
-          cp synex_live/pubspec.yaml temp_app/pubspec.yaml
-          cp synex_live/firestore.rules temp_app/ 2>/dev/null || true
+          # Step 1: Create fresh Flutter project
+          flutter create --org com.synex --project-name synex_live /tmp/synex_build
+          
+          # Step 2: Copy our lib/ and pubspec.yaml
+          rm -rf /tmp/synex_build/lib
+          cp -r synex_live/lib /tmp/synex_build/lib
+          cp synex_live/pubspec.yaml /tmp/synex_build/pubspec.yaml
+          
+          # Step 3: Fix package name
+          sed -i 's/applicationId "com.example.synex_live"/applicationId "com.synex.synex_live"/' /tmp/synex_build/android/app/build.gradle
+          sed -i 's/com.example.synex_live/com.synex.synex_live/g' /tmp/synex_build/android/app/src/main/AndroidManifest.xml
+          
+          # Step 4: Add permissions to AndroidManifest
+          cat > /tmp/synex_build/android/app/src/main/AndroidManifest.xml << 'MANIFEST'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+              <application
+                  android:label="Synex"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme"/>
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data android:name="flutterEmbedding" android:value="2"/>
+              </application>
+          </manifest>
+          MANIFEST
+          
+          # Step 5: Move to working directory
           rm -rf synex_live
-          mv temp_app synex_live
+          mv /tmp/synex_build synex_live
+
       - name: Get packages
         script: |
           cd synex_live
           flutter pub get
+
       - name: Build APK
         script: |
           cd synex_live
           flutter build apk --release --no-tree-shake-icons
+
     artifacts:
       - synex_live/build/**/outputs/**/*.apk
+
     publishing:
       email:
         recipients:

@@ -1,0 +1,30 @@
+workflows:
+  android-release:
+    name: Synex Android Build
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Create Flutter project
+        script: |
+          flutter create --org com.synex --project-name synex_live temp_app
+          cp -r synex_live/lib temp_app/
+          cp synex_live/pubspec.yaml temp_app/pubspec.yaml
+          cp synex_live/firestore.rules temp_app/ 2>/dev/null || true
+          rm -rf synex_live
+          mv temp_app synex_live
+      - name: Get packages
+        script: |
+          cd synex_live
+          flutter pub get
+      - name: Build APK
+        script: |
+          cd synex_live
+          flutter build apk --release --no-tree-shake-icons
+    artifacts:
+      - synex_live/build/**/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - filmexplainthefact@gmail.com

@@ -1,83 +1,29 @@
 workflows:
   android-release:
-    name: Synex Live Build
+    name: Synex Android Build
     max_build_duration: 60
     environment:
       flutter: stable
       java: 17
     scripts:
-      - name: Build Flutter App
+      - name: Create Flutter project
         script: |
-          echo "=== STRUCTURE ==="
-          ls -la
-          ls -la synex_merged/ || echo "synex_merged not found"
-          
-          flutter create --org com.synex --project-name synex_live /tmp/synex_build
-          
-          rm -rf /tmp/synex_build/lib
-          cp -r synex_merged/lib /tmp/synex_build/lib
-          cp synex_merged/pubspec.yaml /tmp/synex_build/pubspec.yaml
-          
-          if [ -d "synex_merged/assets" ]; then
-            cp -r synex_merged/assets /tmp/synex_build/assets
-          fi
-          
-          cat > /tmp/synex_build/android/app/src/main/AndroidManifest.xml << 'MANIFEST'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-              <uses-feature android:name="android.hardware.camera" android:required="false"/>
-              <uses-feature android:name="android.hardware.microphone" android:required="false"/>
-              <application
-                  android:label="Synex Live"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <meta-data
-                          android:name="io.flutter.embedding.android.NormalTheme"
-                          android:resource="@style/NormalTheme"/>
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data android:name="flutterEmbedding" android:value="2"/>
-              </application>
-          </manifest>
-          MANIFEST
-          
-          sed -i 's/applicationId "com.example.synex_live"/applicationId "com.synex.synex_live"/' \
-            /tmp/synex_build/android/app/build.gradle
-          
+          flutter create --org com.synex --project-name synex_live temp_app
+          cp -r synex_live/lib temp_app/
+          cp synex_live/pubspec.yaml temp_app/pubspec.yaml
+          cp synex_live/firestore.rules temp_app/ 2>/dev/null || true
           rm -rf synex_live
-          mv /tmp/synex_build synex_live
-
+          mv temp_app synex_live
       - name: Get packages
         script: |
           cd synex_live
           flutter pub get
-
       - name: Build APK
         script: |
           cd synex_live
           flutter build apk --release --no-tree-shake-icons
-
     artifacts:
       - synex_live/build/**/outputs/**/*.apk
-
     publishing:
       email:
         recipients:

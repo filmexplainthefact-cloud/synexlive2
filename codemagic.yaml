@@ -9,23 +9,31 @@ workflows:
       - name: Build Synex App
         script: |
           set -e
-          echo "=== Working directory ==="
-          pwd
-          echo "=== Repo contents ==="
+          echo "=== Repo structure ==="
           ls -la
           
-          # Backup our source files
-          cp -r synex_live/lib /tmp/our_lib
-          cp synex_live/pubspec.yaml /tmp/our_pubspec.yaml
+          # Auto-detect source folder
+          if [ -d "synex_merged" ]; then
+            SRC="synex_merged"
+          elif [ -d "synex_live" ]; then
+            SRC="synex_live"
+          else
+            echo "ERROR: Source folder not found!"
+            ls -la
+            exit 1
+          fi
+          echo "Using source folder: $SRC"
+          ls -la $SRC/lib/
           
-          echo "=== Our lib folder ==="
-          ls -la /tmp/our_lib/
+          # Copy source to temp
+          cp -r $SRC/lib /tmp/our_lib
+          cp $SRC/pubspec.yaml /tmp/our_pubspec.yaml
           
-          # Create fresh Flutter project at a different location
+          # Create fresh Flutter project
           cd /tmp
           flutter create --org com.synex --project-name synex_app synex_app
           
-          # Replace lib and pubspec with ours
+          # Replace lib and pubspec
           rm -rf /tmp/synex_app/lib
           cp -r /tmp/our_lib /tmp/synex_app/lib
           cp /tmp/our_pubspec.yaml /tmp/synex_app/pubspec.yaml
@@ -34,9 +42,16 @@ workflows:
           sed -i 's/com.example.synex_app/com.synex.synex_live/g' /tmp/synex_app/android/app/build.gradle
           
           # Add permissions
-          sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/><uses-permission android:name="android.permission.RECORD_AUDIO"\/><uses-permission android:name="android.permission.CAMERA"\/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"\/><application/g' /tmp/synex_app/android/app/src/main/AndroidManifest.xml
+          cat > /tmp/perms.txt << 'PERMS'
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+PERMS
+          sed -i 's|<application|'"$(cat /tmp/perms.txt)"'\n    <application|g' /tmp/synex_app/android/app/src/main/AndroidManifest.xml
           
-          echo "=== Verifying main.dart ==="
+          echo "=== main.dart check ==="
           head -3 /tmp/synex_app/lib/main.dart
           
           # Get packages
@@ -45,15 +60,9 @@ workflows:
           
           # Build APK
           flutter build apk --release --no-tree-shake-icons
-          
-          # Copy APK back to original workspace
-          mkdir -p /home/builder/clone/synex_live/build/app/outputs/flutter-apk/
-          cp /tmp/synex_app/build/app/outputs/flutter-apk/app-release.apk /home/builder/clone/synex_live/build/app/outputs/flutter-apk/ 2>/dev/null || true
-          cp /tmp/synex_app/build/app/outputs/flutter-apk/app-release.apk $CM_BUILD_DIR/app-release.apk 2>/dev/null || true
 
     artifacts:
       - /tmp/synex_app/build/**/outputs/**/*.apk
-      - $CM_BUILD_DIR/*.apk
 
     publishing:
       email:

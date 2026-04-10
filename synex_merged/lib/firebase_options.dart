@@ -1,4 +1,3 @@
-// Synex Live Firebase (Auth + Streaming)
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
@@ -8,7 +7,7 @@ class DefaultFirebaseOptions {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android: return android;
       case TargetPlatform.iOS: return ios;
-      default: throw UnsupportedError('Unsupported platform');
+      default: return android;
     }
   }
   static const FirebaseOptions android = FirebaseOptions(
@@ -32,17 +31,5 @@ class DefaultFirebaseOptions {
     projectId: 'dgsell',
     storageBucket: 'dgsell.firebasestorage.app',
     iosBundleId: 'com.synex.synexLive',
-  );
-}
-
-// Synex Gaming Firebase (Tournaments + Store + Spin)
-class GamingFirebaseOptions {
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyA_zA-siOL72nHKCCMW9zk891HDWkbeOgs',
-    appId: '1:1024864441721:android:gaming',
-    messagingSenderId: '1024864441721',
-    projectId: 'k-upl-6a0db',
-    storageBucket: 'k-upl-6a0db.firebasestorage.app',
-    databaseURL: 'https://k-upl-6a0db-default-rtdb.firebaseio.com',
   );
 }

@@ -1,36 +1,52 @@
 workflows:
   android-release:
-    name: Synex Admin Build
+    name: Synex Live Build
     max_build_duration: 60
     environment:
       flutter: stable
       java: 17
     scripts:
-      - name: Build Admin App
+      - name: Build Flutter App
         script: |
+          echo "=== STRUCTURE ==="
           ls -la
-          flutter create --org com.synex --project-name synex_admin /tmp/admin_build
-          rm -rf /tmp/admin_build/lib
-          cp -r synex_admin/lib /tmp/admin_build/lib
-          cp synex_admin/pubspec.yaml /tmp/admin_build/pubspec.yaml
-          if [ -d "synex_admin/assets" ]; then
-            cp -r synex_admin/assets /tmp/admin_build/assets
+          echo "=== synex_merged ==="
+          ls -la synex_merged/
+          
+          flutter create --org com.synex --project-name synex_live /tmp/synex_build
+          
+          rm -rf /tmp/synex_build/lib
+          cp -r synex_merged/lib /tmp/synex_build/lib
+          cp synex_merged/pubspec.yaml /tmp/synex_build/pubspec.yaml
+          
+          if [ -d "synex_merged/assets" ]; then
+            cp -r synex_merged/assets /tmp/synex_build/assets
           fi
+          
           python3 -c "
-          f = open('/tmp/admin_build/android/app/build.gradle', 'r')
-          content = f.read()
+          f = open('/tmp/synex_build/android/app/build.gradle', 'r')
+          c = f.read()
           f.close()
-          content = content.replace('com.example.synex_admin', 'com.synex.synex_admin')
-          f = open('/tmp/admin_build/android/app/build.gradle', 'w')
-          f.write(content)
+          c = c.replace('com.example.synex_live', 'com.synex.synex_live')
+          f = open('/tmp/synex_build/android/app/build.gradle', 'w')
+          f.write(c)
           f.close()
+          print('build.gradle updated')
           "
+          
           python3 << 'PYEOF'
           manifest = """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+              <uses-permission android:name="android.permission.CAMERA"/>
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+              <uses-feature android:name="android.hardware.camera" android:required="false"/>
+              <uses-feature android:name="android.hardware.microphone" android:required="false"/>
               <application
-                  android:label="Synex Admin"
+                  android:label="Synex Live"
                   android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher"
                   android:usesCleartextTraffic="true">
@@ -53,24 +69,32 @@ workflows:
                   <meta-data android:name="flutterEmbedding" android:value="2"/>
               </application>
           </manifest>"""
-          with open('/tmp/admin_build/android/app/src/main/AndroidManifest.xml', 'w') as f:
+          with open('/tmp/synex_build/android/app/src/main/AndroidManifest.xml', 'w') as f:
               f.write(manifest)
-          print("Manifest written successfully")
+          print("Manifest written")
           PYEOF
-          mv /tmp/admin_build ./admin_out
+          
+          echo "=== VERIFY lib/main.dart exists ==="
+          ls /tmp/synex_build/lib/main.dart
+          
+          rm -rf ./synex_out
+          cp -r /tmp/synex_build ./synex_out
+          
+          echo "=== FINAL CHECK ==="
+          ls synex_out/lib/main.dart
 
       - name: Get packages
         script: |
-          cd admin_out
+          cd synex_out
           flutter pub get
 
       - name: Build APK
         script: |
-          cd admin_out
+          cd synex_out
           flutter build apk --release --no-tree-shake-icons
 
     artifacts:
-      - admin_out/build/**/outputs/**/*.apk
+      - synex_out/build/**/outputs/**/*.apk
 
     publishing:
       email:

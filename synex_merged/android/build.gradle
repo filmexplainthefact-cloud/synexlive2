@@ -1,26 +1,14 @@
-android {
-    namespace "com.synex.synex_live"
-    compileSdkVersion flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-    defaultConfig {
-        applicationId "com.synex.synex_live"
-        minSdkVersion 21
-        targetSdkVersion flutter.targetSdkVersion
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
-        multiDexEnabled true
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-        }
+buildscript {
+    ext.kotlin_version = '1.9.0'
+    repositories { google(); mavenCentral() }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.0'
     }
 }
-dependencies {
-    implementation 'androidx.multidex:multidex:2.0.1'
-}
+allprojects { repositories { google(); mavenCentral() } }
+rootProject.buildDir = '../build'
+subprojects { project.buildDir = "${rootProject.buildDir}/${project.name}" }
+subprojects { project.evaluationDependsOn(':app') }
+tasks.register("clean", Delete) { delete rootProject.buildDir }

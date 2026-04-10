@@ -170,9 +170,16 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
 
     if (!confirm || !context.mounted) return;
 
-    final err = await TournamentService.joinTournament(
-      tournamentId: t.id, userId: uid, tournament: t,
-      userBalance: balance, userTickets: tickets);
+   final err = await TournamentService.joinTournament(
+  tournamentId: t.id, userId: uid,
+  tournament: {
+    'registered': t.registered,
+    'maxPlayers': t.maxPlayers,
+    'entryType': t.entryType ?? 'cash',
+    'entryFee': t.entryFee,
+    'name': t.name,
+  },
+  userBalance: balance, userTickets: tickets);
 
     if (!context.mounted) return;
     if (err != null) {

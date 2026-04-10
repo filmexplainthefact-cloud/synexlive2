@@ -1,9 +1,9 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import '../models/tournament_model.dart';
 
 class TournamentService {
-  // Get gaming Firebase instance safely
   static FirebaseDatabase get _db {
     try {
       return FirebaseDatabase.instanceFor(
@@ -16,24 +16,20 @@ class TournamentService {
     }
   }
 
-  // Stream all active tournaments
-  static Stream<List<Map<String, dynamic>>> getTournaments() {
+  // Stream all active tournaments — returns TournamentModel list
+  static Stream<List<TournamentModel>> getTournaments() {
     try {
       return _db.ref('tournaments').onValue.map((event) {
         final data = event.snapshot.value;
-        if (data == null) return <Map<String, dynamic>>[];
+        if (data == null) return <TournamentModel>[];
         final map = Map<String, dynamic>.from(data as Map);
         final list = map.entries
           .where((e) => e.value is Map && (e.value as Map)['active'] != false)
-          .map((e) {
-            final t = Map<String, dynamic>.from(e.value as Map);
-            t['id'] = e.key;
-            return t;
-          })
+          .map((e) => TournamentModel.fromMap(e.key, e.value as Map))
           .toList();
         list.sort((a, b) {
-          if (a['featured'] == true && b['featured'] != true) return -1;
-          if (a['featured'] != true && b['featured'] == true) return 1;
+          if (a.featured && !b.featured) return -1;
+          if (!a.featured && b.featured) return 1;
           return 0;
         });
         return list;
@@ -44,7 +40,6 @@ class TournamentService {
     }
   }
 
-  // Get user joined tournaments
   static Stream<List<String>> getUserJoinedTournaments(String uid) {
     try {
       return _db.ref('users/$uid/joinedTournaments').onValue.map((event) {
@@ -58,7 +53,6 @@ class TournamentService {
     }
   }
 
-  // Join tournament
   static Future<String?> joinTournament({
     required String tournamentId,
     required String userId,
@@ -70,10 +64,8 @@ class TournamentService {
       final registered = tournament['registered'] ?? 0;
       final maxPlayers = tournament['maxPlayers'] ?? 32;
       if (registered >= maxPlayers) return 'Tournament full hai!';
-
       final entryType = tournament['entryType'] ?? 'cash';
       final entryFee  = tournament['entryFee'] ?? 0;
-
       if (entryType == 'ticket') {
         if (userTickets < 1) return 'Ticket nahi hai! Store se kharido.';
         await _db.ref('users/$userId/tickets').set(ServerValue.increment(-1));
@@ -81,7 +73,6 @@ class TournamentService {
         if (userBalance < entryFee) return 'Balance kam hai! Wallet mein add karo.';
         await _db.ref('users/$userId/balance').set(ServerValue.increment(-entryFee));
       }
-
       await _db.ref('tournaments/$tournamentId/registered').set(ServerValue.increment(1));
       await _db.ref('tournaments/$tournamentId/players/$userId').set({
         'joinedAt': ServerValue.timestamp, 'userId': userId,
@@ -96,7 +87,6 @@ class TournamentService {
     }
   }
 
-  // Get user gaming data (balance, tickets etc)
   static Stream<Map<String, dynamic>> getUserGamingData(String uid) {
     try {
       return _db.ref('users/$uid').onValue.map((event) {
@@ -109,9 +99,8 @@ class TournamentService {
     }
   }
 
-  // Spin the wheel
   static Future<Map<String, dynamic>> doSpin(String uid, num balance) async {
-    if (balance < 10) return {'error': 'Balance kam hai! Min Rs.10 chahiye. Pehle wallet mein add karo.'};
+    if (balance < 10) return {'error': 'Balance kam hai! Min Rs.10 chahiye.'};
     try {
       final prizes = [
         {'label': 'Rs.2',  'value': 2,  'type': 'cash'},
@@ -148,7 +137,6 @@ class TournamentService {
     }
   }
 
-  // Get spin history
   static Stream<List<Map<String, dynamic>>> getSpinHistory(String uid) {
     try {
       return _db.ref('spinHistory/$uid').limitToLast(20).onValue.map((event) {
@@ -166,7 +154,6 @@ class TournamentService {
     }
   }
 
-  // Get store items
   static Stream<List<Map<String, dynamic>>> getStoreItems(String category) {
     try {
       return _db.ref('store/$category').onValue.map((event) {
@@ -184,7 +171,6 @@ class TournamentService {
     }
   }
 
-  // Buy item from store
   static Future<String?> buyItem({
     required String uid,
     required Map<String, dynamic> item,
@@ -206,7 +192,6 @@ class TournamentService {
     }
   }
 
-  // Get purchases
   static Stream<List<Map<String, dynamic>>> getPurchases(String uid) {
     try {
       return _db.ref('purchases/$uid').limitToLast(50).onValue.map((event) {
@@ -222,7 +207,6 @@ class TournamentService {
     }
   }
 
-  // Get payment history
   static Stream<List<Map<String, dynamic>>> getPaymentHistory(String uid) {
     try {
       return _db.ref('paymentHistory/$uid').limitToLast(50).onValue.map((event) {
@@ -238,7 +222,6 @@ class TournamentService {
     }
   }
 
-  // Add balance (for testing/admin)
   static Future<void> addBalance(String uid, num amount) =>
     _db.ref('users/$uid/balance').set(ServerValue.increment(amount));
 }

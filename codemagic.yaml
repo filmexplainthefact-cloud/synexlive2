@@ -1,68 +1,76 @@
 workflows:
   android-release:
-    name: Synex Live Android Build
+    name: Synex Admin Build
     max_build_duration: 60
     environment:
       flutter: stable
       java: 17
     scripts:
-      - name: Build Synex App
+      - name: Build Admin App
         script: |
-          set -e
-          echo "=== Repo structure ==="
           ls -la
-          
-          # Auto-detect source folder
-          if [ -d "synex_merged" ]; then
-            SRC="synex_merged"
-          elif [ -d "synex_live" ]; then
-            SRC="synex_live"
-          else
-            echo "ERROR: Source folder not found!"
-            ls -la
-            exit 1
+          flutter create --org com.synex --project-name synex_admin /tmp/admin_build
+          rm -rf /tmp/admin_build/lib
+          cp -r synex_admin/lib /tmp/admin_build/lib
+          cp synex_admin/pubspec.yaml /tmp/admin_build/pubspec.yaml
+          if [ -d "synex_admin/assets" ]; then
+            cp -r synex_admin/assets /tmp/admin_build/assets
           fi
-          echo "Using source folder: $SRC"
-          ls -la $SRC/lib/
-          
-          # Copy source to temp
-          cp -r $SRC/lib /tmp/our_lib
-          cp $SRC/pubspec.yaml /tmp/our_pubspec.yaml
-          
-          # Create fresh Flutter project
-          cd /tmp
-          flutter create --org com.synex --project-name synex_app synex_app
-          
-          # Replace lib and pubspec
-          rm -rf /tmp/synex_app/lib
-          cp -r /tmp/our_lib /tmp/synex_app/lib
-          cp /tmp/our_pubspec.yaml /tmp/synex_app/pubspec.yaml
-          
-          # Fix package name
-          sed -i 's/com.example.synex_app/com.synex.synex_live/g' /tmp/synex_app/android/app/build.gradle
-          
-          # Add permissions
-          cat > /tmp/perms.txt << 'PERMS'
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-PERMS
-          sed -i 's|<application|'"$(cat /tmp/perms.txt)"'\n    <application|g' /tmp/synex_app/android/app/src/main/AndroidManifest.xml
-          
-          echo "=== main.dart check ==="
-          head -3 /tmp/synex_app/lib/main.dart
-          
-          # Get packages
-          cd /tmp/synex_app
+          python3 -c "
+          f = open('/tmp/admin_build/android/app/build.gradle', 'r')
+          content = f.read()
+          f.close()
+          content = content.replace('com.example.synex_admin', 'com.synex.synex_admin')
+          f = open('/tmp/admin_build/android/app/build.gradle', 'w')
+          f.write(content)
+          f.close()
+          "
+          python3 << 'PYEOF'
+          manifest = """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <application
+                  android:label="Synex Admin"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data
+                          android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme"/>
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data android:name="flutterEmbedding" android:value="2"/>
+              </application>
+          </manifest>"""
+          with open('/tmp/admin_build/android/app/src/main/AndroidManifest.xml', 'w') as f:
+              f.write(manifest)
+          print("Manifest written successfully")
+          PYEOF
+          mv /tmp/admin_build ./admin_out
+
+      - name: Get packages
+        script: |
+          cd admin_out
           flutter pub get
-          
-          # Build APK
+
+      - name: Build APK
+        script: |
+          cd admin_out
           flutter build apk --release --no-tree-shake-icons
 
     artifacts:
-      - /tmp/synex_app/build/**/outputs/**/*.apk
+      - admin_out/build/**/outputs/**/*.apk
 
     publishing:
       email:

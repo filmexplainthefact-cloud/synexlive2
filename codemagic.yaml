@@ -8,51 +8,52 @@ workflows:
     scripts:
       - name: Build Synex App
         script: |
-          echo "=== REPO STRUCTURE ==="
+          set -e
+          echo "=== Working directory ==="
+          pwd
+          echo "=== Repo contents ==="
           ls -la
-          echo "=== SYNEX_LIVE FOLDER ==="
-          ls -la synex_live/
-          echo "=== LIB FOLDER ==="
-          ls -la synex_live/lib/
           
-          # Create fresh Flutter project
-          flutter create --org com.synex --project-name synex_live /tmp/build_app
+          # Backup our source files
+          cp -r synex_live/lib /tmp/our_lib
+          cp synex_live/pubspec.yaml /tmp/our_pubspec.yaml
           
-          # IMPORTANT: Remove default lib and replace with ours
-          rm -rf /tmp/build_app/lib
+          echo "=== Our lib folder ==="
+          ls -la /tmp/our_lib/
           
-          # Copy our lib folder
-          cp -r synex_live/lib /tmp/build_app/lib
+          # Create fresh Flutter project at a different location
+          cd /tmp
+          flutter create --org com.synex --project-name synex_app synex_app
           
-          # Copy pubspec
-          cp synex_live/pubspec.yaml /tmp/build_app/pubspec.yaml
+          # Replace lib and pubspec with ours
+          rm -rf /tmp/synex_app/lib
+          cp -r /tmp/our_lib /tmp/synex_app/lib
+          cp /tmp/our_pubspec.yaml /tmp/synex_app/pubspec.yaml
           
-          # Fix package name in android
-          sed -i 's/applicationId "com.example.synex_live"/applicationId "com.synex.synex_live"/' /tmp/build_app/android/app/build.gradle
+          # Fix package name
+          sed -i 's/com.example.synex_app/com.synex.synex_live/g' /tmp/synex_app/android/app/build.gradle
           
-          # Add Internet + other permissions to AndroidManifest
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' /tmp/build_app/android/app/src/main/AndroidManifest.xml
+          # Add permissions
+          sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/><uses-permission android:name="android.permission.RECORD_AUDIO"\/><uses-permission android:name="android.permission.CAMERA"\/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"\/><uses-permission android:name="android.permission.POST_NOTIFICATIONS"\/><application/g' /tmp/synex_app/android/app/src/main/AndroidManifest.xml
           
-          # Verify our main.dart is there
-          echo "=== VERIFYING main.dart ==="
-          head -5 /tmp/build_app/lib/main.dart
+          echo "=== Verifying main.dart ==="
+          head -3 /tmp/synex_app/lib/main.dart
           
-          # Replace original with our build
-          rm -rf synex_live
-          mv /tmp/build_app synex_live
-
-      - name: Get packages
-        script: |
-          cd synex_live
+          # Get packages
+          cd /tmp/synex_app
           flutter pub get
-
-      - name: Build APK
-        script: |
-          cd synex_live
+          
+          # Build APK
           flutter build apk --release --no-tree-shake-icons
+          
+          # Copy APK back to original workspace
+          mkdir -p /home/builder/clone/synex_live/build/app/outputs/flutter-apk/
+          cp /tmp/synex_app/build/app/outputs/flutter-apk/app-release.apk /home/builder/clone/synex_live/build/app/outputs/flutter-apk/ 2>/dev/null || true
+          cp /tmp/synex_app/build/app/outputs/flutter-apk/app-release.apk $CM_BUILD_DIR/app-release.apk 2>/dev/null || true
 
     artifacts:
-      - synex_live/build/**/outputs/**/*.apk
+      - /tmp/synex_app/build/**/outputs/**/*.apk
+      - $CM_BUILD_DIR/*.apk
 
     publishing:
       email:

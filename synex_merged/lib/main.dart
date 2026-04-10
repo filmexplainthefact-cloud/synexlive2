@@ -12,17 +12,33 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Initialize primary Firebase (dgsell - Auth + Streaming)
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Init primary Firebase (dgsell)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
-  // Initialize secondary Firebase (k-upl-6a0db - Gaming)
-  try {
-    await Firebase.initializeApp(
-      name: 'gaming',
-      options: GamingFirebaseOptions.android,
-    );
-  } catch (e) {
-    debugPrint('Gaming Firebase init: $e');
+  // Init Gaming Firebase (k-upl-6a0db)
+  bool gamingInitialized = false;
+  for (final app in Firebase.apps) {
+    if (app.name == 'gaming') { gamingInitialized = true; break; }
+  }
+  if (!gamingInitialized) {
+    try {
+      await Firebase.initializeApp(
+        name: 'gaming',
+        options: const FirebaseOptions(
+          apiKey: 'AIzaSyA_zA-siOL72nHKCCMW9zk891HDWkbeOgs',
+          appId: '1:1024864441721:android:gaming_app_id',
+          messagingSenderId: '1024864441721',
+          projectId: 'k-upl-6a0db',
+          storageBucket: 'k-upl-6a0db.firebasestorage.app',
+          databaseURL: 'https://k-upl-6a0db-default-rtdb.firebaseio.com',
+        ),
+      );
+      debugPrint('Gaming Firebase initialized');
+    } catch (e) {
+      debugPrint('Gaming Firebase init error: $e');
+    }
   }
 
   await NotificationService.initialize();

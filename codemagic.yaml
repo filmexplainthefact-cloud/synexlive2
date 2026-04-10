@@ -1,29 +1,59 @@
 workflows:
   android-release:
-    name: Synex Android Build
+    name: Synex Live Android Build
     max_build_duration: 60
     environment:
       flutter: stable
       java: 17
     scripts:
-      - name: Create Flutter project
+      - name: Build Synex App
         script: |
-          flutter create --org com.synex --project-name synex_live temp_app
-          cp -r synex_live/lib temp_app/
-          cp synex_live/pubspec.yaml temp_app/pubspec.yaml
-          cp synex_live/firestore.rules temp_app/ 2>/dev/null || true
+          echo "=== REPO STRUCTURE ==="
+          ls -la
+          echo "=== SYNEX_LIVE FOLDER ==="
+          ls -la synex_live/
+          echo "=== LIB FOLDER ==="
+          ls -la synex_live/lib/
+          
+          # Create fresh Flutter project
+          flutter create --org com.synex --project-name synex_live /tmp/build_app
+          
+          # IMPORTANT: Remove default lib and replace with ours
+          rm -rf /tmp/build_app/lib
+          
+          # Copy our lib folder
+          cp -r synex_live/lib /tmp/build_app/lib
+          
+          # Copy pubspec
+          cp synex_live/pubspec.yaml /tmp/build_app/pubspec.yaml
+          
+          # Fix package name in android
+          sed -i 's/applicationId "com.example.synex_live"/applicationId "com.synex.synex_live"/' /tmp/build_app/android/app/build.gradle
+          
+          # Add Internet + other permissions to AndroidManifest
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' /tmp/build_app/android/app/src/main/AndroidManifest.xml
+          
+          # Verify our main.dart is there
+          echo "=== VERIFYING main.dart ==="
+          head -5 /tmp/build_app/lib/main.dart
+          
+          # Replace original with our build
           rm -rf synex_live
-          mv temp_app synex_live
+          mv /tmp/build_app synex_live
+
       - name: Get packages
         script: |
           cd synex_live
           flutter pub get
+
       - name: Build APK
         script: |
           cd synex_live
           flutter build apk --release --no-tree-shake-icons
+
     artifacts:
       - synex_live/build/**/outputs/**/*.apk
+
     publishing:
       email:
         recipients:

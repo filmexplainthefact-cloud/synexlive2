@@ -17,7 +17,22 @@ class AppTheme {
   static const Color textPri   = Color(0xFFE8F4FF);
   static const Color textSec   = Color(0xFF5A80B0);
   static const Color textHint  = Color(0xFF3A5A8A);
+// ... tumhara existing code ...
 
+class AppTheme {
+  // Existing colors (example)
+  static const Color bgDark = Color(0xFF0A0A0A);
+  static const Color card = Color(0xFF1E1E1E);
+  static const Color primary = Color(0xFF4CAF50);
+  static const Color textPri = Color(0xFFFFFFFF);
+  static const Color textSec = Color(0xFFB0B0B0);
+  static const Color textHint = Color(0xFF6B6B6B);
+  static const Color liveRed = Color(0xFFE53935);
+  static const Color speakerGreen = Color(0xFF4CAF50);
+  static const Color border = Color(0xFF2C2C2C);
+  static const Color surface = Color(0xFF1A1A1A); 
+  static const Color accent = Color(0xFFFF6B6B); 
+}
   // Aliases
   static const Color primaryColor   = primary;
   static const Color accentColor    = cyan;

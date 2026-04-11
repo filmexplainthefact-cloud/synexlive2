@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import '../services/live_service.dart';
-import '../services/webrtc_service.dart'
-    if (dart.library.html) '../services/webrtc_service.dart';
-import '../models/live_model.dart';
-import '../models/chat_model.dart';
-import '../utils/app_theme.dart';
-import '../utils/helpers.dart';
-import '../utils/app_constants.dart';
-import '../widgets/speaker_tile.dart';
-import '../widgets/chat_bubble.dart';
-import '../widgets/request_tile.dart';
-import '../widgets/user_avatar.dart';
-import 'home_screen.dart';
+import '../../services/auth_service.dart';
+import '../../services/live_service.dart';
+import '../../services/webrtc_service.dart'
+    if (dart.library.html) '../../services/webrtc_service.dart';
+import '../../models/live_model.dart';
+import '../../models/chat_model.dart';
+import '../../utils/app_theme.dart';
+import '../../utils/helpers.dart';
+import '../../utils/app_constants.dart';
+import '../../widgets/speaker_tile.dart';
+import '../../widgets/chat_bubble.dart';
+import '../../widgets/request_tile.dart';
+import '../home_screen.dart';
 
 class LiveScreen extends StatefulWidget {
   final String liveId;

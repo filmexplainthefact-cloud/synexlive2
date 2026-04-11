@@ -9,6 +9,7 @@ class WebRTCService {
   bool _audioEnabled = true;
   bool _videoEnabled = false;
   bool _initialized = false;
+  String? _currentChannel;
 
   bool get isAudioEnabled => _audioEnabled;
   bool get isVideoEnabled => _videoEnabled;
@@ -19,8 +20,10 @@ class WebRTCService {
   Future<void> initialize({bool enableVideo = false}) async {
     if (_initialized) return;
     try {
-      // Request mic permission
       await Permission.microphone.request();
+      if (await Permission.camera.isDenied && enableVideo) {
+        await Permission.camera.request();
+      }
 
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(RtcEngineContext(
@@ -28,7 +31,24 @@ class WebRTCService {
         channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
       ));
 
-      // Audio only setup
+      // Register event handlers
+      _engine!.registerEventHandler(RtcEngineEventHandler(
+        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+          debugPrint('✅ Joined channel: ${connection.channelId}');
+        },
+        onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+          debugPrint('👤 Remote user joined: $remoteUid');
+          onRemoteStreamAdded?.call(remoteUid.toString(), null);
+        },
+        onUserOffline: (RtcConnection connection, int remoteUid, int reason) {
+          debugPrint('👋 Remote user offline: $remoteUid');
+          onRemoteStreamRemoved?.call(remoteUid.toString());
+        },
+        onError: (int err, String msg) {
+          debugPrint('❌ Agora Error: $err - $msg');
+        },
+      ));
+
       await _engine!.enableAudio();
       await _engine!.setAudioProfile(
         profile: AudioProfileType.audioProfileMusicHighQuality,
@@ -39,15 +59,19 @@ class WebRTCService {
       _videoEnabled = enableVideo;
       _audioEnabled = true;
       _initialized = true;
-      debugPrint('Agora initialized successfully');
+      debugPrint('✅ Agora initialized successfully');
     } catch (e) {
-      debugPrint('Agora init error: $e');
+      debugPrint('❌ Agora init error: $e');
     }
   }
 
   Future<void> joinChannel(String channelName, {bool isHost = false}) async {
-    if (!_initialized || _engine == null) await initialize();
+    if (!_initialized || _engine == null) {
+      await initialize();
+    }
     try {
+      _currentChannel = channelName;
+      
       await _engine!.setClientRole(
         role: isHost
           ? ClientRoleType.clientRoleBroadcaster
@@ -55,18 +79,22 @@ class WebRTCService {
       );
 
       await _engine!.joinChannel(
-        token: '', // No token mode (App ID only)
+        token: '',
         channelId: channelName,
         uid: 0,
-        options: const ChannelMediaOptions(
+        options: ChannelMediaOptions(
           autoSubscribeAudio: true,
-          publishMicrophoneTrack: true,
-          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+          autoSubscribeVideo: false,
+          publishMicrophoneTrack: isHost ? true : false,
+          publishCameraTrack: false,
+          clientRoleType: isHost 
+            ? ClientRoleType.clientRoleBroadcaster 
+            : ClientRoleType.clientRoleAudience,
         ),
       );
-      debugPrint('Joined Agora channel: $channelName as ${isHost ? "host" : "audience"}');
+      debugPrint('🎙️ Joined Agora channel: $channelName as ${isHost ? "HOST" : "AUDIENCE"}');
     } catch (e) {
-      debugPrint('Agora joinChannel error: $e');
+      debugPrint('❌ Agora joinChannel error: $e');
     }
   }
 
@@ -76,6 +104,7 @@ class WebRTCService {
       await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
       await _engine!.muteLocalAudioStream(false);
       _audioEnabled = true;
+      debugPrint('🎤 Switched to speaker/broadcaster');
     } catch (e) {
       debugPrint('switchToSpeaker error: $e');
     }
@@ -85,6 +114,7 @@ class WebRTCService {
     if (!_initialized || _engine == null) return;
     try {
       await _engine!.setClientRole(role: ClientRoleType.clientRoleAudience);
+      debugPrint('🔇 Switched to audience');
     } catch (e) {
       debugPrint('switchToAudience error: $e');
     }
@@ -94,16 +124,19 @@ class WebRTCService {
     if (!_initialized || _engine == null) return;
     _audioEnabled = !_audioEnabled;
     _engine!.muteLocalAudioStream(!_audioEnabled);
-    debugPrint('Audio toggled: $_audioEnabled');
+    debugPrint('🎛️ Audio toggled: ${_audioEnabled ? "ON" : "OFF"}');
   }
 
-  void toggleVideo() => _videoEnabled = !_videoEnabled;
+  void toggleVideo() {
+    _videoEnabled = !_videoEnabled;
+    debugPrint('🎥 Video toggled: ${_videoEnabled ? "ON" : "OFF"}');
+  }
 
   void forceMute() {
     if (!_initialized || _engine == null) return;
     _audioEnabled = false;
     _engine!.muteLocalAudioStream(true);
-    debugPrint('Force muted');
+    debugPrint('🔇 Force muted by host');
   }
 
   Future<void> switchCamera() async {}
@@ -129,7 +162,8 @@ class WebRTCService {
     if (!_initialized || _engine == null) return;
     try {
       await _engine!.leaveChannel();
-      debugPrint('Left Agora channel');
+      _currentChannel = null;
+      debugPrint('🚪 Left Agora channel');
     } catch (e) {
       debugPrint('leaveChannel error: $e');
     }
@@ -142,7 +176,7 @@ class WebRTCService {
       await _engine!.release();
       _engine = null;
       _initialized = false;
-      debugPrint('Agora disposed');
+      debugPrint('🗑️ Agora disposed');
     } catch (e) {
       debugPrint('dispose error: $e');
     }

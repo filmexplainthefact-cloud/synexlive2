@@ -20,14 +20,21 @@ class LiveService {
         startedAt: DateTime.now(), isLive: true,
       );
       await ref.set(live.toFirestore());
+      debugPrint('✅ Live created: ${ref.id}');
       return ref.id;
-    } catch (e) { debugPrint('startLive: $e'); return null; }
+    } catch (e) { 
+      debugPrint('❌ startLive error: $e'); 
+      return null; 
+    }
   }
 
-  static Future<void> endLive(String liveId) =>
-    _db.collection(AppConstants.livesCollection).doc(liveId).update({
-      'isLive': false, 'endedAt': FieldValue.serverTimestamp(),
+  static Future<void> endLive(String liveId) async {
+    await _db.collection(AppConstants.livesCollection).doc(liveId).update({
+      'isLive': false, 
+      'endedAt': FieldValue.serverTimestamp(),
     });
+    debugPrint('🏁 Live ended: $liveId');
+  }
 
   static Stream<List<LiveModel>> getLiveSessions() =>
     _db.collection(AppConstants.livesCollection)
@@ -56,8 +63,12 @@ class LiveService {
       if (live.speakers.length >= AppConstants.maxSpeakers) return false;
       await _db.collection(AppConstants.livesCollection).doc(liveId)
         .update({'speakers': FieldValue.arrayUnion([uid])});
+      debugPrint('🎤 Speaker added: $uid');
       return true;
-    } catch (_) { return false; }
+    } catch (e) { 
+      debugPrint('❌ addSpeaker error: $e');
+      return false; 
+    }
   }
 
   static Future<void> removeSpeaker(String liveId, String uid) =>
@@ -112,16 +123,21 @@ class LiveService {
     required String userName, String? userPhotoUrl,
   }) async {
     await _db.collection(AppConstants.requestsCollection).doc(liveId).set({
-      userId: {'name': userName, 'photoUrl': userPhotoUrl,
+      userId: {
+        'name': userName, 
+        'photoUrl': userPhotoUrl,
         'status': AppConstants.statusPending,
-        'requestedAt': FieldValue.serverTimestamp()}
+        'requestedAt': FieldValue.serverTimestamp()
+      }
     }, SetOptions(merge: true));
+    debugPrint('✋ Hand raised by: $userName');
   }
 
   static Future<void> acceptRequest({required String liveId, required String userId}) async {
     await _db.collection(AppConstants.requestsCollection).doc(liveId)
       .update({'$userId.status': AppConstants.statusAccepted});
     await addSpeaker(liveId, userId);
+    debugPrint('✅ Request accepted: $userId');
   }
 
   static Future<void> rejectRequest({required String liveId, required String userId}) =>

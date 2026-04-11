@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../services/auth_service.dart';
 import '../services/tournament_service.dart';
 import '../utils/app_theme.dart';
@@ -7,6 +9,7 @@ import '../utils/helpers.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/user_avatar.dart';
 import 'auth/login_screen.dart';
+import 'payment_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -16,12 +19,21 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
-  final _nameCtrl      = TextEditingController();
-  final _bioCtrl       = TextEditingController();
-  final _ignCtrl       = TextEditingController();
-  final _squadCtrl     = TextEditingController();
-  final _ffUidCtrl     = TextEditingController();
+  final _nameCtrl  = TextEditingController();
+  final _bioCtrl   = TextEditingController();
+  final _ignCtrl   = TextEditingController();
+  final _squadCtrl = TextEditingController();
+  final _ffUidCtrl = TextEditingController();
   bool _saving = false;
+
+  static FirebaseDatabase get _db {
+    try {
+      return FirebaseDatabase.instanceFor(
+        app: Firebase.app('gaming'),
+        databaseURL: 'https://k-upl-6a0db-default-rtdb.firebaseio.com',
+      );
+    } catch (_) { return FirebaseDatabase.instance; }
+  }
 
   @override
   void dispose() {
@@ -43,12 +55,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() { _saving = false; _editing = false; });
     if (!mounted) return;
     if (err != null) AppHelpers.showSnackBar(context, err, isError: true);
-    else AppHelpers.showSnackBar(context, 'Profile update ho gaya!');
+    else AppHelpers.showSnackBar(context, 'Profile updated!');
   }
 
   Future<void> _signOut() async {
     final ok = await AppHelpers.showConfirmDialog(context,
-      title: 'Logout', message: 'Logout karna chahte ho?',
+      title: 'Logout', message: 'Are you sure you want to logout?',
       confirmText: 'Logout', isDestructive: true);
     if (!ok || !mounted) return;
     await context.read<AuthService>().signOut();
@@ -94,11 +106,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(children: [
+
           // Avatar + info
           Container(
             width: double.infinity, padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF1565C0)]),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0D47A1), Color(0xFF1565C0)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(16)),
             child: Column(children: [
               UserAvatar(name: user.name, photoUrl: user.photoUrl, size: 80,
@@ -125,9 +140,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ]),
             ]),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          // Gaming stats (from gaming DB)
+          // WALLET SECTION
+          if (isMe && auth.currentUserId != null)
+            StreamBuilder<DatabaseEvent>(
+              stream: _db.ref('users/${auth.currentUserId}/balance').onValue,
+              builder: (_, snap) {
+                final balance = snap.data?.snapshot.value ?? 0;
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppTheme.success.withOpacity(0.2), AppTheme.cyan.withOpacity(0.1)]),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.success.withOpacity(0.4))),
+                  child: Row(children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: AppTheme.success.withOpacity(0.2), shape: BoxShape.circle),
+                      child: const Icon(Icons.account_balance_wallet_rounded,
+                        color: AppTheme.success, size: 24)),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Wallet Balance', style: TextStyle(color: AppTheme.textSec, fontSize: 12)),
+                      Text('Rs.$balance', style: const TextStyle(
+                        color: AppTheme.textPri, fontSize: 22, fontWeight: FontWeight.w800)),
+                    ])),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add Money'),
+                      onPressed: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const PaymentScreen())),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10))),
+                  ]),
+                );
+              }),
+          const SizedBox(height: 16),
+
+          // Payment History
+          if (isMe && auth.currentUserId != null)
+            StreamBuilder<DatabaseEvent>(
+              stream: _db.ref('paymentRequests/${auth.currentUserId}')
+                .orderByChild('submittedAt').limitToLast(5).onValue,
+              builder: (_, snap) {
+                final data = snap.data?.snapshot.value;
+                if (data == null || data is! Map) return const SizedBox();
+                final requests = (data as Map).entries.toList()
+                  ..sort((a, b) {
+                    final aTime = (a.value as Map)['submittedAt'] ?? 0;
+                    final bTime = (b.value as Map)['submittedAt'] ?? 0;
+                    return bTime.compareTo(aTime);
+                  });
+                if (requests.isEmpty) return const SizedBox();
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.card, borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.border)),
+                  child: Column(children: [
+                    const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: Row(children: [
+                        Icon(Icons.history_rounded, color: AppTheme.cyan, size: 16),
+                        SizedBox(width: 6),
+                        Text('Recent Payment Requests',
+                          style: TextStyle(color: AppTheme.cyan, fontSize: 13, fontWeight: FontWeight.w700)),
+                      ])),
+                    const Divider(height: 1, color: AppTheme.border),
+                    ...requests.take(5).map((e) {
+                      final req = e.value as Map;
+                      final status = req['status'] ?? 'pending';
+                      Color statusColor = AppTheme.warning;
+                      String statusText = 'Pending';
+                      if (status == 'approved') { statusColor = AppTheme.success; statusText = 'Approved'; }
+                      if (status == 'rejected') { statusColor = AppTheme.danger; statusText = 'Rejected'; }
+                      return ListTile(
+                        dense: true,
+                        leading: Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.15), shape: BoxShape.circle),
+                          child: Icon(
+                            status == 'approved' ? Icons.check_circle :
+                            status == 'rejected' ? Icons.cancel : Icons.pending,
+                            color: statusColor, size: 18)),
+                        title: Text('Rs.${req['amount'] ?? 0}',
+                          style: const TextStyle(color: AppTheme.textPri, fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: Text('UTR: ${req['utr'] ?? '-'}',
+                          style: const TextStyle(color: AppTheme.textSec, fontSize: 11)),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(6)),
+                          child: Text(statusText,
+                            style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600))),
+                      );
+                    }),
+                  ]));
+              }),
+          const SizedBox(height: 16),
+
+          // Gaming stats
           if (auth.currentUserId != null)
             StreamBuilder<Map<String, dynamic>>(
               stream: TournamentService.getUserGamingData(auth.currentUserId!),
@@ -160,7 +279,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ]),
                 );
               }),
-
           const SizedBox(height: 16),
 
           // Edit section
@@ -221,8 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: ctrl, maxLines: maxLines,
             style: const TextStyle(color: AppTheme.textPri, fontSize: 14),
             decoration: const InputDecoration(
-              border: InputBorder.none, isDense: true,
-              contentPadding: EdgeInsets.zero),
+              border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
           )),
         ]),
       ]),

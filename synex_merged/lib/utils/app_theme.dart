@@ -7,6 +7,7 @@ class AppTheme {
   static const Color liveRed   = Color(0xFFFF3D00);
   static const Color success   = Color(0xFF00E676);
   static const Color danger    = Color(0xFFFF4444);
+  static const Color warning   = Color(0xFFF57C00);
   static const Color purple    = Color(0xFF7C4DFF);
   static const Color bgDark    = Color(0xFF060D1B);
   static const Color bg2       = Color(0xFF081528);

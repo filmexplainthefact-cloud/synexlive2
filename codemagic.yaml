@@ -1,102 +1,150 @@
-workflows:
-  android-release:
-    name: Synex Live Build
-    max_build_duration: 60
-    environment:
-      flutter: stable
-      java: 17
-    scripts:
-      - name: Build Flutter App
-        script: |
-          echo "=== STRUCTURE ==="
-          ls -la
-          echo "=== synex_merged ==="
-          ls -la synex_merged/
-          
-          flutter create --org com.synex --project-name synex_live /tmp/synex_build
-          
-          rm -rf /tmp/synex_build/lib
-          cp -r synex_merged/lib /tmp/synex_build/lib
-          cp synex_merged/pubspec.yaml /tmp/synex_build/pubspec.yaml
-          
-          if [ -d "synex_merged/assets" ]; then
-            cp -r synex_merged/assets /tmp/synex_build/assets
-          fi
-          
-          python3 -c "
-          f = open('/tmp/synex_build/android/app/build.gradle', 'r')
-          c = f.read()
-          f.close()
-          c = c.replace('com.example.synex_live', 'com.synex.synex_live')
-          f = open('/tmp/synex_build/android/app/build.gradle', 'w')
-          f.write(c)
-          f.close()
-          print('build.gradle updated')
-          "
-          
-          python3 << 'PYEOF'
-          manifest = """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-              <uses-permission android:name="android.permission.CAMERA"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-              <uses-feature android:name="android.hardware.camera" android:required="false"/>
-              <uses-feature android:name="android.hardware.microphone" android:required="false"/>
-              <application
-                  android:label="Synex Live"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <meta-data
-                          android:name="io.flutter.embedding.android.NormalTheme"
-                          android:resource="@style/NormalTheme"/>
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <meta-data android:name="flutterEmbedding" android:value="2"/>
-              </application>
-          </manifest>"""
-          with open('/tmp/synex_build/android/app/src/main/AndroidManifest.xml', 'w') as f:
-              f.write(manifest)
-          print("Manifest written")
-          PYEOF
-          
-          echo "=== VERIFY lib/main.dart exists ==="
-          ls /tmp/synex_build/lib/main.dart
-          
-          rm -rf ./synex_out
-          cp -r /tmp/synex_build ./synex_out
-          
-          echo "=== FINAL CHECK ==="
-          ls synex_out/lib/main.dart
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-      - name: Get packages
-        script: |
-          cd synex_out
-          flutter pub get
+class WebRTCService {
+  static const String _appId = '9dd70ee991a24b24bf96e72289ec97c7';
 
-      - name: Build APK
-        script: |
-          cd synex_out
-          flutter build apk --release --no-tree-shake-icons
+  RtcEngine? _engine;
+  bool _audioEnabled = true;
+  bool _videoEnabled = false;
+  bool _initialized = false;
 
-    artifacts:
-      - synex_out/build/**/outputs/**/*.apk
+  bool get isAudioEnabled => _audioEnabled;
+  bool get isVideoEnabled => _videoEnabled;
 
-    publishing:
-      email:
-        recipients:
-          - filmexplainthefact@gmail.com
+  Function(String uid, dynamic stream)? onRemoteStreamAdded;
+  Function(String uid)? onRemoteStreamRemoved;
+
+  Future<void> initialize({bool enableVideo = false}) async {
+    if (_initialized) return;
+    try {
+      // Request mic permission
+      await Permission.microphone.request();
+
+      _engine = createAgoraRtcEngine();
+      await _engine!.initialize(RtcEngineContext(
+        appId: _appId,
+        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+      ));
+
+      // Audio only setup
+      await _engine!.enableAudio();
+      await _engine!.setAudioProfile(
+        profile: AudioProfileType.audioProfileMusicHighQuality,
+        scenario: AudioScenarioType.audioScenarioChatroom,
+      );
+      await _engine!.setDefaultAudioRouteToSpeakerphone(true);
+
+      _videoEnabled = enableVideo;
+      _audioEnabled = true;
+      _initialized = true;
+      debugPrint('Agora initialized successfully');
+    } catch (e) {
+      debugPrint('Agora init error: $e');
+    }
+  }
+
+  Future<void> joinChannel(String channelName, {bool isHost = false}) async {
+    if (!_initialized || _engine == null) await initialize();
+    try {
+      await _engine!.setClientRole(
+        role: isHost
+          ? ClientRoleType.clientRoleBroadcaster
+          : ClientRoleType.clientRoleAudience,
+      );
+
+      await _engine!.joinChannel(
+        token: '', // No token mode (App ID only)
+        channelId: channelName,
+        uid: 0,
+        options: const ChannelMediaOptions(
+          autoSubscribeAudio: true,
+          publishMicrophoneTrack: true,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
+      );
+      debugPrint('Joined Agora channel: $channelName as ${isHost ? "host" : "audience"}');
+    } catch (e) {
+      debugPrint('Agora joinChannel error: $e');
+    }
+  }
+
+  Future<void> switchToSpeaker() async {
+    if (!_initialized || _engine == null) return;
+    try {
+      await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+      await _engine!.muteLocalAudioStream(false);
+      _audioEnabled = true;
+    } catch (e) {
+      debugPrint('switchToSpeaker error: $e');
+    }
+  }
+
+  Future<void> switchToAudience() async {
+    if (!_initialized || _engine == null) return;
+    try {
+      await _engine!.setClientRole(role: ClientRoleType.clientRoleAudience);
+    } catch (e) {
+      debugPrint('switchToAudience error: $e');
+    }
+  }
+
+  void toggleAudio() {
+    if (!_initialized || _engine == null) return;
+    _audioEnabled = !_audioEnabled;
+    _engine!.muteLocalAudioStream(!_audioEnabled);
+    debugPrint('Audio toggled: $_audioEnabled');
+  }
+
+  void toggleVideo() => _videoEnabled = !_videoEnabled;
+
+  void forceMute() {
+    if (!_initialized || _engine == null) return;
+    _audioEnabled = false;
+    _engine!.muteLocalAudioStream(true);
+    debugPrint('Force muted');
+  }
+
+  Future<void> switchCamera() async {}
+
+  Future<void> callPeer({
+    required String liveId,
+    required String localUid,
+    required String remoteUid,
+  }) async {
+    await joinChannel(liveId, isHost: true);
+  }
+
+  Future<void> answerCall({
+    required String liveId,
+    required String localUid,
+    required String callerUid,
+    required Map<String, dynamic> offerData,
+  }) async {
+    await joinChannel(liveId, isHost: false);
+  }
+
+  Future<void> leaveChannel() async {
+    if (!_initialized || _engine == null) return;
+    try {
+      await _engine!.leaveChannel();
+      debugPrint('Left Agora channel');
+    } catch (e) {
+      debugPrint('leaveChannel error: $e');
+    }
+  }
+
+  Future<void> dispose() async {
+    if (_engine == null) return;
+    try {
+      await leaveChannel();
+      await _engine!.release();
+      _engine = null;
+      _initialized = false;
+      debugPrint('Agora disposed');
+    } catch (e) {
+      debugPrint('dispose error: $e');
+    }
+  }
+}

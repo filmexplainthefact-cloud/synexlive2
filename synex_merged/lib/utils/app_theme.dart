@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  static const Color accent       = Color(0xFF00E5FF);
+static const Color speakerGreen = Color(0xFF00C853);
   static const Color primary   = Color(0xFF1565C0);
   static const Color cyan      = Color(0xFF00E5FF);
   static const Color gold      = Color(0xFFFFD700);

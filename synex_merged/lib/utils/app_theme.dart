@@ -1,89 +1,105 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class AppTheme {
-  static const Color accent       = Color(0xFF00E5FF);
-static const Color speakerGreen = Color(0xFF00C853);
-  static const Color primary   = Color(0xFF1565C0);
-  static const Color cyan      = Color(0xFF00E5FF);
-  static const Color gold      = Color(0xFFFFD700);
-  static const Color liveRed   = Color(0xFFFF3D00);
-  static const Color success   = Color(0xFF00E676);
-  static const Color danger    = Color(0xFFFF4444);
-  static const Color warning   = Color(0xFFF57C00);
-  static const Color purple    = Color(0xFF7C4DFF);
-  static const Color bgDark    = Color(0xFF060D1B);
-  static const Color bg2       = Color(0xFF081528);
-  static const Color card      = Color(0xFF0B1F3D);
-  static const Color card2     = Color(0xFF0E2650);
-  static const Color border    = Color(0xFF1B3C6E);
-  static const Color textPri   = Color(0xFFE8F4FF);
-  static const Color textSec   = Color(0xFF5A80B0);
-  static const Color textHint  = Color(0xFF3A5A8A);
-// ... tumhara existing code ...
-
-class AppTheme {
-  // Existing colors (example)
-  static const Color bgDark = Color(0xFF0A0A0A);
-  static const Color card = Color(0xFF1E1E1E);
-  static const Color primary = Color(0xFF4CAF50);
-  static const Color textPri = Color(0xFFFFFFFF);
-  static const Color textSec = Color(0xFFB0B0B0);
-  static const Color textHint = Color(0xFF6B6B6B);
-  static const Color liveRed = Color(0xFFE53935);
-  static const Color speakerGreen = Color(0xFF4CAF50);
-  static const Color border = Color(0xFF2C2C2C);
-  static const Color surface = Color(0xFF1A1A1A); 
-  static const Color accent = Color(0xFFFF6B6B); 
+class AppColors {
+  static const bg = Color(0xFF060D1B);
+  static const bg2 = Color(0xFF081528);
+  static const card = Color(0xFF0B1F3D);
+  static const card2 = Color(0xFF0E2650);
+  static const border = Color(0xFF1B3C6E);
+  static const blue1 = Color(0xFF1565C0);
+  static const blue2 = Color(0xFF1976D2);
+  static const blue3 = Color(0xFF42A5F5);
+  static const cyan = Color(0xFF00E5FF);
+  static const white = Color(0xFFE8F4FF);
+  static const muted = Color(0xFF5A80B0);
+  static const success = Color(0xFF00E676);
+  static const danger = Color(0xFFFF4444);
+  static const warn = Color(0xFFFFAA00);
+  static const gold = Color(0xFFFFD700);
+  static const purple = Color(0xFF7C4DFF);
+  static const pink = Color(0xFFF50057);
+  static const live = Color(0xFFFF3D00);
 }
-  // Aliases
-  static const Color primaryColor   = primary;
-  static const Color accentColor    = cyan;
-  static const Color backgroundDark = bgDark;
-  static const Color cardColor      = card;
-  static const Color borderColor    = border;
-  static const Color textPrimary    = textPri;
-  static const Color textSecondary  = textSec;
-  static const Color speakerGreen   = success;
 
-  static ThemeData get darkTheme => ThemeData(
+class AppTheme {
+  static ThemeData get dark => ThemeData(
+    useMaterial3: true,
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: bgDark,
-    primaryColor: primary,
+    scaffoldBackgroundColor: AppColors.bg,
     colorScheme: const ColorScheme.dark(
-      primary: primary, secondary: cyan,
-      surface: card, background: bgDark, error: danger,
+      primary: AppColors.cyan,
+      secondary: AppColors.blue3,
+      surface: AppColors.card,
+      error: AppColors.danger,
     ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: bg2, elevation: 0, centerTitle: true,
-      iconTheme: IconThemeData(color: textPri),
-      titleTextStyle: TextStyle(color: textPri, fontSize: 17, fontWeight: FontWeight.w700),
+    textTheme: GoogleFonts.exo2TextTheme(ThemeData.dark().textTheme).copyWith(
+      displayLarge: GoogleFonts.orbitron(color: AppColors.white, fontWeight: FontWeight.w900),
+      displayMedium: GoogleFonts.orbitron(color: AppColors.white, fontWeight: FontWeight.w700),
+      titleLarge: GoogleFonts.orbitron(color: AppColors.white, fontWeight: FontWeight.w700),
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: AppColors.bg2,
+      elevation: 0,
+      centerTitle: false,
+      titleTextStyle: GoogleFonts.orbitron(
+        color: AppColors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+      ),
+      iconTheme: const IconThemeData(color: AppColors.blue3),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: AppColors.card,
+      selectedItemColor: AppColors.cyan,
+      unselectedItemColor: AppColors.muted,
+      type: BottomNavigationBarType.fixed,
+      elevation: 0,
+    ),
+    cardTheme: CardTheme(
+      color: AppColors.card,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.border, width: 1),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      filled: true, fillColor: card2,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: border)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: cyan, width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: danger)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: danger, width: 1.5)),
-      hintStyle: const TextStyle(color: textHint, fontSize: 14),
-      labelStyle: const TextStyle(color: textSec),
+      filled: true,
+      fillColor: AppColors.card2,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.cyan, width: 1.5),
+      ),
+      labelStyle: const TextStyle(color: AppColors.muted),
+      hintStyle: const TextStyle(color: AppColors.muted),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: primary, foregroundColor: Colors.white,
-        minimumSize: const Size(double.infinity, 50),
+        backgroundColor: AppColors.blue1,
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        textStyle: GoogleFonts.rajdhani(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.5),
       ),
     ),
-    cardTheme: CardThemeData(
-      color: card, elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: EdgeInsets.zero,
-    ),
-    dividerColor: border,
-    iconTheme: const IconThemeData(color: textPri),
+    dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1),
   );
+}
+
+class AppConstants {
+  static const appName = 'SYNEX';
+  static const appTagline = 'The Arena for Champions';
+  static const welcomeBonus = 10;
+  static const referralBonus = 10;
+  static const xpPerMatch = 50;
+  static const xpPerWin = 150;
 }
